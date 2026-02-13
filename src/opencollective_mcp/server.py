@@ -44,6 +44,145 @@ async def app_lifespan(server: FastMCP):
 
 mcp = FastMCP("opencollective_mcp", lifespan=app_lifespan)
 
+# ---------------------------------------------------------------------------
+# Prompts for AI guidance
+# ---------------------------------------------------------------------------
+
+
+@mcp.prompt()
+def opencollective_overview() -> str:
+    """Overview of OpenCollective MCP tools."""
+    return """
+# OpenCollective MCP Tools Guide
+
+This MCP provides tools to manage OpenCollective collectives and Hetzner Cloud invoices.
+
+## Quick Reference
+
+### OpenCollective Tools
+- `oc_get_account`: Get account details by slug (no auth needed for public data)
+- `oc_search_accounts`: Search collectives/organizations
+- `oc_list_expenses`: List expenses with filters (status, type, date, tags)
+- `oc_create_expense`: Submit new expense (requires auth)
+- `oc_process_expense`: Approve/reject/pay expenses
+- `oc_edit_account_setting`: Edit account settings
+- `oc_set_budget`: Set yearly budget goal (requires token with 'account' scope)
+- `oc_execute_graphql`: Run arbitrary GraphQL queries
+
+### Hetzner Tools
+- `hetzner_list_invoices`: List all invoices
+- `hetzner_get_latest_invoice`: Get most recent invoice
+- `hetzner_get_invoice`: Get specific invoice
+
+## Important Notes
+
+1. **Expenses**: When creating expenses, use `payee_slug` matching the collective (for self-hosted) or the vendor slug (e.g., "1040179-hetzner-0267965b")
+
+2. **Dates**: Use ISO 8601 format (YYYY-MM-DD) for dates like `incurred_at`
+
+3. **Amounts**: Use cents (e.g., 6938 for €69.38) or specify amount in EUR directly
+
+4. **Budget Setting**: The `oc_set_budget` tool converts EUR to cents automatically. Just pass amount=800 for €800/year
+
+5. **Token Scopes**: 
+   - Read operations: No token needed
+   - Create/edit expenses: Token with 'expenses' scope
+   - Edit account settings/budget: Token with 'account' scope
+
+## Common Workflows
+
+### Monthly Hetzner Expense Submission
+1. `hetzner_get_latest_invoice` - Get the invoice
+2. `oc_create_expense` - Submit to OpenCollective with:
+   - account_slug: "goingdark"
+   - expense_type: "INVOICE"
+   - payee_slug: "1040179-hetzner-0267965b" (for Hetzner)
+   - amount_cents from invoice
+   - reference: invoice ID
+   - tags: ["hetzner", "hosting"]
+
+### Check and Update Budget
+1. `oc_get_account` - View current stats including yearlyBudget
+2. `oc_set_budget` - Update yearly budget (amount in EUR, not cents)
+"""
+
+
+@mcp.prompt()
+def expense_creation_guide() -> str:
+    """Guide for creating expenses correctly."""
+    return """
+# Creating OpenCollective Expenses
+
+## Required Parameters
+- `account_slug`: The collective to submit to (e.g., "goingdark")
+- `description`: What the expense is for
+- `payee_slug`: Who receives payment (collective slug or vendor slug)
+- `items`: Array with description, amount_cents, currency
+
+## Optional Parameters
+- `expense_type`: INVOICE (default), RECEIPT, FUNDING_REQUEST, GRANT
+- `tags`: ["hetzner", "hosting"] for categorization
+- `reference`: Invoice number from vendor
+- `incurred_at`: Date in YYYY-MM-DD format
+
+## Important: Date Format
+The `incurred_at` in items MUST be YYYY-MM-DD (e.g., "2026-02-03"), not a full datetime.
+The MCP automatically converts this to ISO 8601 format.
+
+## Example: Hetzner Invoice
+```
+account_slug: "goingdark"
+description: "Hetzner Cloud - February 2026"
+expense_type: "INVOICE"
+payee_slug: "goingdark"  # Or vendor slug like "1040179-hetzner-0267965b"
+items: [{
+  "description": "Hetzner Cloud - February 2026",
+  "amount_cents": 6938,
+  "currency": "EUR",
+  "incurred_at": "2026-02-03"
+}]
+reference: "086000667312"
+tags: ["hetzner", "hosting"]
+```
+
+## Payout Methods
+Default is ACCOUNT_BALANCE (pays from collective balance). For external payees, may need PAYPAL or BANK_ACCOUNT.
+"""
+
+
+@mcp.prompt()
+def budget_guide() -> str:
+    """Guide for setting budgets."""
+    return """
+# Setting Budget Goals
+
+## oc_set_budget Tool
+Simply use the `oc_set_budget` tool:
+- `slug`: Account slug (e.g., "goingdark")
+- `amount`: Budget in EUR (e.g., 800 for €800/year) - NOT cents
+- `title`: Optional title (default: "Yearly Budget")
+
+The tool automatically converts to cents for the API.
+
+## Manual via GraphQL
+If needed, use `oc_execute_graphql`:
+```graphql
+mutation { 
+  editAccountSetting(
+    account: { slug: "goingdark" }, 
+    key: "goals", 
+    value: [{ type: "yearlyBudget", title: "Yearly Budget", amount: 80000, currency: "EUR" }]
+  ) { id slug name }
+}
+```
+Note: amount is in cents (80000 = €800)
+
+## Requirements
+- Token must have 'account' scope
+- If you get "Unauthorized" error, the token scope is insufficient
+"""
+
+
 # Module-level clients (initialized by lifespan)
 _oc_client: Optional[oc_client.OpenCollectiveClient] = None
 _hetzner_client: Optional[hetzner_client.HetznerClient] = None
@@ -343,6 +482,30 @@ class EditAccountInput(BaseModel):
     currency: Optional[str] = Field(default=None, description="New currency code")
 
 
+class EditAccountSettingInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    slug: str = Field(
+        ..., description="Account slug to edit settings for", min_length=1
+    )
+    key: str = Field(
+        ...,
+        description="Setting key (e.g. 'expensesMonthlyLimit', 'VIRTUAL_CARDS_MAX_MONTHLY_AMOUNT')",
+        min_length=1,
+    )
+    value: Any = Field(..., description="Value to set (string, number, or boolean)")
+
+
+class SetBudgetInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    slug: str = Field(..., description="Account slug (e.g. 'goingdark')", min_length=1)
+    amount: int = Field(
+        ..., description="Budget amount in EUR (e.g. 800 for €800/year)", ge=1
+    )
+    title: str = Field(
+        default="Yearly Budget", description="Display title for the goal"
+    )
+
+
 class ExecuteGraphQLInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     query: str = Field(
@@ -476,6 +639,74 @@ async def oc_edit_account(params: EditAccountInput, ctx=None) -> str:
 
         data = await cl.execute(queries.EDIT_ACCOUNT, {"account": account_input})
         return json.dumps(data.get("editAccount", {}), indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name="oc_edit_account_setting",
+    annotations={
+        "title": "Edit Account Setting",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def oc_edit_account_setting(params: EditAccountSettingInput, ctx=None) -> str:
+    """Edit an account setting like monthly spending limits.
+
+    Requires authentication with account scope.
+    Common keys:
+    - 'expensesMonthlyLimit': Monthly expense limit in EUR
+    - 'VIRTUAL_CARDS_MAX_MONTHLY_AMOUNT': Max monthly virtual card spending
+    - 'VIRTUAL_CARDS_MAX_DAILY_AMOUNT': Max daily virtual card spending
+    """
+    try:
+        cl = _get_client(ctx)
+        variables = {
+            "account": {"slug": params.slug},
+            "key": params.key,
+            "value": params.value,
+        }
+        data = await cl.execute(queries.EDIT_ACCOUNT_SETTING, variables)
+        return json.dumps(data.get("editAccountSetting", {}), indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name="oc_set_budget",
+    annotations={
+        "title": "Set Yearly Budget Goal",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def oc_set_budget(params: SetBudgetInput, ctx=None) -> str:
+    """Set the yearly budget goal for a collective.
+
+    Example: Set 800 EUR yearly budget for goingdark collective.
+    Requires token with 'account' scope.
+    """
+    try:
+        cl = _get_client(ctx)
+        variables = {
+            "account": {"slug": params.slug},
+            "key": "goals",
+            "value": [
+                {
+                    "type": "yearlyBudget",
+                    "title": params.title,
+                    "amount": params.amount * 100,  # Convert to cents
+                    "currency": "EUR",
+                }
+            ],
+        }
+        data = await cl.execute(queries.EDIT_ACCOUNT_SETTING, variables)
+        return json.dumps(data.get("editAccountSetting", {}), indent=2)
     except Exception as e:
         return _handle_error(e)
 
@@ -631,7 +862,11 @@ async def oc_create_expense(params: CreateExpenseInput, ctx=None) -> str:
             if item.url:
                 item_data["url"] = item.url
             if item.incurred_at:
-                item_data["incurredAt"] = item.incurred_at
+                # Ensure ISO 8601 datetime format
+                incurred = item.incurred_at
+                if len(incurred) == 10:  # YYYY-MM-DD format
+                    incurred = f"{incurred}T00:00:00Z"
+                item_data["incurredAt"] = incurred
             items.append(item_data)
 
         expense_input: dict[str, Any] = {
@@ -650,8 +885,8 @@ async def oc_create_expense(params: CreateExpenseInput, ctx=None) -> str:
         if params.payout_method_data:
             payout["data"] = params.payout_method_data
         if not payout:
-            # Default to OTHER if nothing specified
-            payout = {"type": "OTHER"}
+            # Default to ACCOUNT_BALANCE for collectives
+            payout = {"type": "ACCOUNT_BALANCE"}
         expense_input["payoutMethod"] = payout
 
         if params.currency:

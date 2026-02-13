@@ -150,6 +150,29 @@ description: "Updated description"
 tags: ["privacy", "security"]
 ```
 
+#### `oc_edit_account_setting`
+Edit account settings like monthly spending limits or other configuration.
+
+```
+slug: "goingdark"
+key: "expensesMonthlyLimit"
+value: "80"
+```
+
+Common keys: `expensesMonthlyLimit`, `VIRTUAL_CARDS_MAX_MONTHLY_AMOUNT`, `goals`
+
+#### `oc_set_budget`
+Set the yearly budget goal for a collective. Converts EUR to cents automatically.
+
+```
+slug: "goingdark"
+amount: 800
+title: "Yearly Budget"
+```
+
+Note: Pass amount in EUR (800 = €800), not cents. The tool converts automatically.
+Requires token with 'account' scope.
+
 ### OpenCollective -- Members
 
 #### `oc_get_members`

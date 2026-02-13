@@ -281,3 +281,13 @@ mutation EditAccount($account: AccountUpdateInput!) {
   }
 }
 """
+
+EDIT_ACCOUNT_SETTING = """
+mutation EditAccountSetting($account: AccountReferenceInput!, $key: String!, $value: JSON!) {
+  editAccountSetting(account: $account, key: $key, value: $value) {
+    id
+    slug
+    name
+  }
+}
+"""
