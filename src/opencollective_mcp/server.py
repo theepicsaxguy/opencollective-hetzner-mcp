@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -524,13 +524,16 @@ class ExecuteGraphQLInput(BaseModel):
 
 @mcp.tool(
     name="oc_get_account",
-    annotations={
-        "title": "Get OpenCollective Account",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get OpenCollective Account",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_get_account(params: GetAccountInput, ctx=None) -> str:
     """Get detailed information about an OpenCollective account/collective by slug.
@@ -551,13 +554,16 @@ async def oc_get_account(params: GetAccountInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_search_accounts",
-    annotations={
-        "title": "Search OpenCollective Accounts",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Search OpenCollective Accounts",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_search_accounts(params: SearchAccountsInput, ctx=None) -> str:
     """Search for OpenCollective accounts/collectives.
@@ -583,13 +589,16 @@ async def oc_search_accounts(params: SearchAccountsInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_get_logged_in_account",
-    annotations={
-        "title": "Get Current Authenticated Account",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": False,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Current Authenticated Account",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    ),
 )
 async def oc_get_logged_in_account(ctx=None) -> str:
     """Get information about the currently authenticated account.
@@ -608,13 +617,16 @@ async def oc_get_logged_in_account(ctx=None) -> str:
 
 @mcp.tool(
     name="oc_edit_account",
-    annotations={
-        "title": "Edit OpenCollective Account",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Edit OpenCollective Account",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_edit_account(params: EditAccountInput, ctx=None) -> str:
     """Edit an OpenCollective account/collective profile.
@@ -646,13 +658,16 @@ async def oc_edit_account(params: EditAccountInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_edit_account_setting",
-    annotations={
-        "title": "Edit Account Setting",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Edit Account Setting",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_edit_account_setting(params: EditAccountSettingInput, ctx=None) -> str:
     """Edit an account setting like monthly spending limits.
@@ -678,13 +693,16 @@ async def oc_edit_account_setting(params: EditAccountSettingInput, ctx=None) -> 
 
 @mcp.tool(
     name="oc_set_budget",
-    annotations={
-        "title": "Set Yearly Budget Goal",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Set Yearly Budget Goal",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_set_budget(params: SetBudgetInput, ctx=None) -> str:
     """Set the yearly budget goal for a collective.
@@ -719,13 +737,16 @@ async def oc_set_budget(params: SetBudgetInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_get_members",
-    annotations={
-        "title": "Get Account Members/Backers",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Account Members/Backers",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_get_members(params: GetMembersInput, ctx=None) -> str:
     """List members and backers of an OpenCollective account.
@@ -756,13 +777,16 @@ async def oc_get_members(params: GetMembersInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_list_expenses",
-    annotations={
-        "title": "List Expenses",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "List Expenses",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_list_expenses(params: ListExpensesInput, ctx=None) -> str:
     """List expenses for an OpenCollective account with filtering.
@@ -801,13 +825,16 @@ async def oc_list_expenses(params: ListExpensesInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_get_expense",
-    annotations={
-        "title": "Get Expense Details",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Expense Details",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_get_expense(params: GetExpenseInput, ctx=None) -> str:
     """Get detailed information about a specific expense by ID or legacy ID."""
@@ -828,13 +855,16 @@ async def oc_get_expense(params: GetExpenseInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_create_expense",
-    annotations={
-        "title": "Create/Submit Expense",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Create/Submit Expense",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_create_expense(params: CreateExpenseInput, ctx=None) -> str:
     """Submit a new expense to an OpenCollective collective.
@@ -919,13 +949,16 @@ async def oc_create_expense(params: CreateExpenseInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_edit_expense",
-    annotations={
-        "title": "Edit Expense",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Edit Expense",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_edit_expense(params: EditExpenseInput, ctx=None) -> str:
     """Edit an existing expense. Only provided fields will be updated.
@@ -958,13 +991,16 @@ async def oc_edit_expense(params: EditExpenseInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_delete_expense",
-    annotations={
-        "title": "Delete Expense",
-        "readOnlyHint": False,
-        "destructiveHint": True,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Delete Expense",
+            "readOnlyHint": False,
+            "destructiveHint": True,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_delete_expense(params: DeleteExpenseInput, ctx=None) -> str:
     """Delete an expense. Requires authentication and appropriate permissions."""
@@ -985,13 +1021,16 @@ async def oc_delete_expense(params: DeleteExpenseInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_process_expense",
-    annotations={
-        "title": "Process Expense (Approve/Reject/Pay)",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Process Expense (Approve/Reject/Pay)",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_process_expense(params: ProcessExpenseInput, ctx=None) -> str:
     """Process an expense: approve, reject, pay, hold, release, etc.
@@ -1026,13 +1065,16 @@ async def oc_process_expense(params: ProcessExpenseInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_list_transactions",
-    annotations={
-        "title": "List Transactions (Ledger)",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "List Transactions (Ledger)",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_list_transactions(params: ListTransactionsInput, ctx=None) -> str:
     """List transactions for an OpenCollective account (the ledger).
@@ -1072,13 +1114,16 @@ async def oc_list_transactions(params: ListTransactionsInput, ctx=None) -> str:
 
 @mcp.tool(
     name="oc_execute_graphql",
-    annotations={
-        "title": "Execute Raw GraphQL",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Execute Raw GraphQL",
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def oc_execute_graphql(params: ExecuteGraphQLInput, ctx=None) -> str:
     """Execute a raw GraphQL query or mutation against the OpenCollective API v2.
@@ -1135,13 +1180,16 @@ class HetznerGetInvoiceInput(BaseModel):
 
 @mcp.tool(
     name="hetzner_list_invoices",
-    annotations={
-        "title": "List Hetzner Cloud Invoices",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "List Hetzner Cloud Invoices",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def hetzner_list_invoices(params: HetznerListInvoicesInput, ctx=None) -> str:
     """List invoices from Hetzner Cloud.
@@ -1163,13 +1211,16 @@ async def hetzner_list_invoices(params: HetznerListInvoicesInput, ctx=None) -> s
 
 @mcp.tool(
     name="hetzner_get_invoice",
-    annotations={
-        "title": "Get Hetzner Cloud Invoice",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Hetzner Cloud Invoice",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def hetzner_get_invoice(params: HetznerGetInvoiceInput, ctx=None) -> str:
     """Get details of a specific Hetzner Cloud invoice by ID.
@@ -1190,13 +1241,16 @@ async def hetzner_get_invoice(params: HetznerGetInvoiceInput, ctx=None) -> str:
 
 @mcp.tool(
     name="hetzner_get_latest_invoice",
-    annotations={
-        "title": "Get Latest Hetzner Cloud Invoice",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Latest Hetzner Cloud Invoice",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def hetzner_get_latest_invoice(ctx=None) -> str:
     """Get the most recent Hetzner Cloud invoice.
@@ -1225,13 +1279,16 @@ class HetznerGetInvoicePdfInput(BaseModel):
 
 @mcp.tool(
     name="hetzner_get_invoice_pdf",
-    annotations={
-        "title": "Download Hetzner Invoice PDF",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Download Hetzner Invoice PDF",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def hetzner_get_invoice_pdf(params: HetznerGetInvoicePdfInput, ctx=None) -> str:
     """Download a Hetzner invoice as PDF.
@@ -1262,13 +1319,16 @@ async def hetzner_get_invoice_pdf(params: HetznerGetInvoicePdfInput, ctx=None) -
 
 @mcp.tool(
     name="hetzner_parse_invoice_pdf",
-    annotations={
-        "title": "Parse Hetzner Invoice PDF to JSON",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Parse Hetzner Invoice PDF to JSON",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def hetzner_parse_invoice_pdf(params: HetznerGetInvoicePdfInput, ctx=None) -> str:
     """Download and parse a Hetzner invoice PDF to JSON.
@@ -1296,13 +1356,16 @@ class HetznerGetInvoiceDetailsInput(BaseModel):
 
 @mcp.tool(
     name="hetzner_get_invoice_details",
-    annotations={
-        "title": "Get Hetzner Invoice Details",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    },
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Hetzner Invoice Details",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
 )
 async def hetzner_get_invoice_details(
     params: HetznerGetInvoiceDetailsInput, ctx=None

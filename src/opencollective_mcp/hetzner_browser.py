@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 import pyotp
 from playwright.async_api import async_playwright, Browser, Page
-from playwright_stealth import Stealth
+from playwright_stealth import Stealth  # type: ignore[import-untyped]
 
 
 @dataclass
@@ -90,6 +90,7 @@ class HetznerBrowserClient:
         self._playwright = await self._playwright_cm.__aenter__()
 
         # Launch browser with additional args to avoid detection
+        assert self._playwright is not None
         self._browser = await self._playwright.chromium.launch(
             headless=self.headless,
             args=[
@@ -380,6 +381,7 @@ class HetznerBrowserClient:
         csv_url = f"https://usage.hetzner.com/{usage_id}?csv&cn={self.customer_number}"
 
         # Need to include session cookies from browser
+        assert self._page is not None
         cookies = await self._page.context.cookies()
         cookie_header = "; ".join([f"{c['name']}={c['value']}" for c in cookies])
 
