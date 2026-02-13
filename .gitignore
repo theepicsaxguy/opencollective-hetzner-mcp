@@ -1,5 +1,6 @@
 mcp.json
 __pycache__
 opencode.json
+.env
 .ruff_cache
 *.egg-info
