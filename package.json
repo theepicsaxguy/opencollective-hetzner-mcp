@@ -1,0 +1,25 @@
+{
+  "name": "@benjaminsanden/opencollective-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for OpenCollective GraphQL API v2 and Hetzner Cloud invoices",
+  "main": "src/opencollective_mcp/__main__.py",
+  "type": "module",
+  "scripts": {
+    "build": "pip install -e .",
+    "start": "python -m opencollective_mcp"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "opencollective",
+    "hetzner",
+    "graphql"
+  ],
+  "author": "Benjamin Sandén",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
