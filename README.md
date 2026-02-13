@@ -1,13 +1,14 @@
 # OpenCollective MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents programmatic access to [OpenCollective](https://opencollective.com/) and [Hetzner Cloud](https://www.hetzner.com/) — enabling automated bookkeeping, collective management, and invoice handling without manual intervention.
+A [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents programmatic access to [OpenCollective](https://opencollective.com/), [Hetzner Cloud](https://www.hetzner.com/), and [Cloudflare](https://www.cloudflare.com/) — enabling automated bookkeeping, collective management, and invoice handling without manual intervention.
 
 ## What is it?
 
-This MCP server exposes 19 tools that let AI agents interact with:
+This MCP server exposes 22 tools that let AI agents interact with:
 
 - **OpenCollective GraphQL API v2** — Manage collectives, submit expenses, process payments, query transactions, and handle members
 - **Hetzner Cloud invoices** — Automatically fetch, parse, and reconcile hosting invoices
+- **Cloudflare billing** — Track CDN and hosting costs via the billing history API
 
 ### The Problem
 
@@ -59,6 +60,14 @@ Repeat every month. Forever.
 | `hetzner_get_invoice_pdf` | Download invoice as PDF (base64) |
 | `hetzner_parse_invoice_pdf` | Extract structured data from invoice PDF |
 | `hetzner_get_invoice_details` | Get line-item breakdown from usage portal |
+
+### Cloudflare Operations (3 tools)
+
+| Tool | What it does |
+|------|--------------|
+| `cloudflare_list_invoices` | List billing history (paginated) |
+| `cloudflare_get_invoice` | Get a specific billing item by ID |
+| `cloudflare_get_latest_invoice` | Fetch the most recent billing item |
 
 ## The Monthly Bookkeeping Workflow
 
@@ -112,9 +121,10 @@ cp .env.example .env
 | Variable | Required for | How to get it |
 |----------|-------------|---------------|
 | `OPENCOLLECTIVE_TOKEN` | Write operations | [OpenCollective dashboard](https://opencollective.com/dashboard) → For Developers → Personal Tokens |
-| `HETZNER_ACCOUNT_EMAIL` | Invoice tools | Your Hetzner account email |
-| `HETZNER_ACCOUNT_PASSWORD` | Invoice tools | Your Hetzner password |
-| `HETZNER_TOTP_SECRET` | Invoice tools (if 2FA) | Shown when you enable 2FA |
+| `HETZNER_ACCOUNT_EMAIL` | Hetzner invoice tools | Your Hetzner account email |
+| `HETZNER_ACCOUNT_PASSWORD` | Hetzner invoice tools | Your Hetzner password |
+| `HETZNER_TOTP_SECRET` | Hetzner invoice tools (if 2FA) | Shown when you enable 2FA |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare billing tools | [Cloudflare dashboard](https://dash.cloudflare.com) → My Profile → API Tokens → Create Token with "Billing:Read" permission |
 
 ### 3. Run the server
 
@@ -139,7 +149,8 @@ Add to your `~/.claude.json`:
       "env": {
         "OPENCOLLECTIVE_TOKEN": "your-token",
         "HETZNER_ACCOUNT_EMAIL": "you@example.com",
-        "HETZNER_ACCOUNT_PASSWORD": "your-password"
+        "HETZNER_ACCOUNT_PASSWORD": "your-password",
+        "CLOUDFLARE_API_TOKEN": "your-cloudflare-token"
       }
     }
   }

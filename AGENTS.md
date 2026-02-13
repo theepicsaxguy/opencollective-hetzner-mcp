@@ -1,8 +1,8 @@
 # OpenCollective MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents programmatic access to the [OpenCollective GraphQL API v2](https://graphql-docs-v2.opencollective.com/) and [Hetzner Cloud](https://docs.hetzner.cloud/) invoices. Built with Python, [FastMCP](https://github.com/modelcontextprotocol/python-sdk), and [httpx](https://www.python-httpx.org/).
+A [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents programmatic access to the [OpenCollective GraphQL API v2](https://graphql-docs-v2.opencollective.com/), [Hetzner Cloud](https://docs.hetzner.cloud/) invoices, and [Cloudflare](https://www.cloudflare.com/) billing. Built with Python, [FastMCP](https://github.com/modelcontextprotocol/python-sdk), and [httpx](https://www.python-httpx.org/).
 
-The primary use case is automated monthly bookkeeping: fetching hosting invoices from Hetzner and submitting them as expenses to an OpenCollective collective -- but the server exposes the full range of OpenCollective operations so any agent can manage collectives, expenses, members, and transactions without manual intervention.
+The primary use case is automated monthly bookkeeping: fetching hosting invoices from Hetzner and Cloudflare, then submitting them as expenses to an OpenCollective collective -- but the server exposes the full range of OpenCollective operations so any agent can manage collectives, expenses, members, and transactions without manual intervention.
 
 ---
 
@@ -12,11 +12,12 @@ The primary use case is automated monthly bookkeeping: fetching hosting invoices
 src/opencollective_mcp/
   __init__.py              Package marker
   __main__.py              `python -m opencollective_mcp` entrypoint
-  server.py                FastMCP server -- all 16 tools, input models, lifespan
+  server.py                FastMCP server -- all 22 tools, input models, lifespan
   client.py                Async GraphQL client for OpenCollective API v2
   queries.py               GraphQL query/mutation strings (organized by domain)
   hetzner.py               Hetzner client wrapper (uses browser automation)
   hetzner_browser.py       Browser automation for Hetzner Accounts login and invoice retrieval
+  cloudflare.py            Cloudflare billing client (uses REST API)
 ```
 
 ### Design decisions
@@ -37,7 +38,9 @@ src/opencollective_mcp/
 
 2. **Hetzner invoice retrieval via browser automation.** Since Hetzner does not provide a public API for billing/invoices, we use Playwright to automate the web interface at `accounts.hetzner.com/invoice`. This logs in with your email/password and extracts invoice data from the HTML table.
 
-3. **FastMCP wiring.** Each tool is registered with `@mcp.tool()` including annotations (`readOnlyHint`, `destructiveHint`, etc.) so MCP clients can reason about safety. A lifespan context manager initializes both API clients once at startup and injects them into tool handlers via the MCP context.
+3. **Cloudflare billing retrieval via API.** Cloudflare provides a deprecated but functional `/user/billing/history` endpoint that returns billing events with amounts and dates. While not a true invoice API (no PDFs), it provides the essential cost and date data needed for bookkeeping.
+
+4. **FastMCP wiring.** Each tool is registered with `@mcp.tool()` including annotations (`readOnlyHint`, `destructiveHint`, etc.) so MCP clients can reason about safety. A lifespan context manager initializes both API clients once at startup and injects them into tool handlers via the MCP context.
 
 ### API references
 
@@ -45,6 +48,7 @@ src/opencollective_mcp/
 |---------|----------|-------------|------|
 | OpenCollective GraphQL v2 | `https://api.opencollective.com/graphql/v2` | `Personal-Token: <token>` | [graphql-docs-v2.opencollective.com](https://graphql-docs-v2.opencollective.com/) |
 | Hetzner Cloud | `https://api.hetzner.cloud/v1` | `Authorization: Bearer <token>` | [docs.hetzner.cloud](https://docs.hetzner.cloud/) |
+| Cloudflare API | `https://api.cloudflare.com/client/v4` | `Authorization: Bearer <token>` | [developers.cloudflare.com/api](https://developers.cloudflare.com/api/) |
 
 ---
 
@@ -76,6 +80,7 @@ pip install -e .
 | `HETZNER_ACCOUNT_EMAIL` | Hetzner invoice tools | Your Hetzner account login email |
 | `HETZNER_ACCOUNT_PASSWORD` | Hetzner invoice tools | Your Hetzner account password |
 | `HETZNER_TOTP_SECRET` | Hetzner invoice tools (if 2FA enabled) | Your TOTP secret key from when you set up 2FA |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare billing tools | [Cloudflare dashboard](https://dash.cloudflare.com) > My Profile > API Tokens > Create Token with "Billing:Read" permission |
 
 **Getting your TOTP secret:** If you have 2FA enabled on your Hetzner account, you'll need your TOTP secret key for automated login. This was shown as a "Secret key" or "Setup key" when you first enabled 2FA. If you don't have it, you'll need to disable and re-enable 2FA to get a new secret, or use a recovery code.
 
@@ -276,6 +281,17 @@ Get a single invoice by ID.
 #### `hetzner_get_latest_invoice`
 Convenience tool: fetches the most recent invoice. Designed for the monthly bookkeeping workflow.
 
+### Cloudflare
+
+#### `cloudflare_list_invoices`
+List billing history with pagination. Uses the deprecated but functional `/user/billing/history` endpoint. Returns cost, date, and type for each billing item.
+
+#### `cloudflare_get_invoice`
+Get a specific billing item by ID.
+
+#### `cloudflare_get_latest_invoice`
+Convenience tool: fetches the most recent billing item. Designed for the monthly bookkeeping workflow.
+
 ---
 
 ## Workflows
@@ -293,6 +309,19 @@ The primary automation this server enables:
    - Amount and date from step 2
 
 This works even with a negative collective balance -- the expense is recorded for bookkeeping and will be paid when funds are available.
+
+### Monthly Cloudflare expense submission
+
+Same workflow as Hetzner, but for Cloudflare CDN/hosting costs:
+
+1. **Fetch** the latest Cloudflare billing item: `cloudflare_get_latest_invoice`
+2. **Extract** the total amount (in USD) and date from the response
+3. **Submit** it to OpenCollective: `oc_create_expense` with:
+   - `account_slug: "goingdark"`
+   - `expense_type: "INVOICE"`
+   - `tags: ["cloudflare", "hosting", "cdn"]`
+   - Amount (convert USD to cents, e.g., $3.45 -> 345 cents)
+   - Date from step 2
 
 ### Check collective health
 

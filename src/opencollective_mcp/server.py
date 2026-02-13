@@ -22,6 +22,7 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import client as oc_client
+from . import cloudflare as cloudflare_client
 from . import hetzner as hetzner_client
 from . import queries
 
@@ -32,14 +33,17 @@ from . import queries
 
 @asynccontextmanager
 async def app_lifespan(server: FastMCP):
-    global _oc_client, _hetzner_client
+    global _oc_client, _hetzner_client, _cloudflare_client
     oc_token = os.environ.get("OPENCOLLECTIVE_TOKEN")
     _oc_client = oc_client.OpenCollectiveClient(personal_token=oc_token)
     # Hetzner client is lazy - browser starts on first use with email/password
     _hetzner_client = hetzner_client.HetznerClient()
+    # Cloudflare client is also lazy - API calls on first use
+    _cloudflare_client = None
     yield {
         "oc_client": _oc_client,
         "hetzner_client": _hetzner_client,
+        "cloudflare_client": _cloudflare_client,
     }
 
 
@@ -56,7 +60,7 @@ def opencollective_overview() -> str:
     return """
 # OpenCollective MCP Tools Guide
 
-This MCP provides tools to manage OpenCollective collectives and Hetzner Cloud invoices.
+This MCP provides tools to manage OpenCollective collectives, Hetzner Cloud invoices, and Cloudflare billing.
 
 ## Quick Reference
 
@@ -74,6 +78,11 @@ This MCP provides tools to manage OpenCollective collectives and Hetzner Cloud i
 - `hetzner_list_invoices`: List all invoices
 - `hetzner_get_latest_invoice`: Get most recent invoice
 - `hetzner_get_invoice`: Get specific invoice
+
+### Cloudflare Tools
+- `cloudflare_list_invoices`: List billing history
+- `cloudflare_get_latest_invoice`: Get most recent billing item
+- `cloudflare_get_invoice`: Get specific billing item by ID
 
 ## Important Notes
 
@@ -101,6 +110,16 @@ This MCP provides tools to manage OpenCollective collectives and Hetzner Cloud i
    - amount_cents from invoice
    - reference: invoice ID
    - tags: ["hetzner", "hosting"]
+
+### Monthly Cloudflare Expense Submission
+1. `cloudflare_get_latest_invoice` - Get the billing item (returns cost in USD)
+2. `oc_create_expense` - Submit to OpenCollective with:
+   - account_slug: "goingdark"
+   - expense_type: "INVOICE"
+   - payee_slug: "goingdark" (or your collective slug)
+   - amount_cents (convert USD to cents, e.g., $3.45 -> 345)
+   - reference: Cloudflare invoice ID
+   - tags: ["cloudflare", "hosting", "cdn"]
 
 ### Check and Update Budget
 1. `oc_get_account` - View current stats including yearlyBudget
@@ -187,6 +206,7 @@ Note: amount is in cents (80000 = €800)
 # Module-level clients (initialized by lifespan)
 _oc_client: Optional[oc_client.OpenCollectiveClient] = None
 _hetzner_client: Optional[hetzner_client.HetznerClient] = None
+_cloudflare_client: Optional[cloudflare_client.CloudflareClient] = None
 
 
 def _get_client(ctx) -> oc_client.OpenCollectiveClient:
@@ -1385,6 +1405,140 @@ async def hetzner_get_invoice_details(
             return "Error: HETZNER_CUSTOMER_NUMBER environment variable must be set."
         cl = _get_hetzner_client(ctx)
         data = await cl.get_invoice_details(params.usage_id)
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+# ---------------------------------------------------------------------------
+# Cloudflare helpers and input models
+# ---------------------------------------------------------------------------
+
+
+def _get_cloudflare_client(ctx) -> cloudflare_client.CloudflareClient:
+    global _cloudflare_client
+    if _cloudflare_client is not None:
+        return _cloudflare_client
+    if (
+        ctx
+        and hasattr(ctx, "request_context")
+        and hasattr(ctx.request_context, "lifespan_state")
+    ):
+        client = ctx.request_context.lifespan_state.get("cloudflare_client")
+        if client is not None:
+            return client
+    # Fallback: create a new client
+    _cloudflare_client = cloudflare_client.CloudflareClient()
+    return _cloudflare_client
+
+
+class CloudflareListInvoicesInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    page: int = Field(default=1, ge=1, description="Page number")
+    per_page: int = Field(
+        default=25, ge=1, le=50, description="Items per page (max 50)"
+    )
+
+
+class CloudflareGetInvoiceInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    invoice_id: str = Field(..., description="Invoice ID", min_length=1)
+
+
+# ---------------------------------------------------------------------------
+# Tools: Cloudflare Invoices
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="cloudflare_list_invoices",
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "List Cloudflare Invoices",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
+)
+async def cloudflare_list_invoices(
+    params: CloudflareListInvoicesInput, ctx=None
+) -> str:
+    """List billing history from Cloudflare.
+
+    Returns billing items with cost and date. Requires CLOUDFLARE_API_TOKEN to be set.
+    Uses the Cloudflare API (deprecated but functional /user/billing/history endpoint).
+    """
+    try:
+        token = os.environ.get("CLOUDFLARE_API_TOKEN")
+        if not token:
+            return "Error: CLOUDFLARE_API_TOKEN environment variable must be set."
+        cl = _get_cloudflare_client(ctx)
+        data = await cl.list_invoices(page=params.page, per_page=params.per_page)
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name="cloudflare_get_invoice",
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Cloudflare Invoice",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
+    ),
+)
+async def cloudflare_get_invoice(params: CloudflareGetInvoiceInput, ctx=None) -> str:
+    """Get details of a specific Cloudflare billing item by ID.
+
+    Requires CLOUDFLARE_API_TOKEN to be set.
+    """
+    try:
+        token = os.environ.get("CLOUDFLARE_API_TOKEN")
+        if not token:
+            return "Error: CLOUDFLARE_API_TOKEN environment variable must be set."
+        cl = _get_cloudflare_client(ctx)
+        data = await cl.get_invoice(params.invoice_id)
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name="cloudflare_get_latest_invoice",
+    annotations=cast(
+        ToolAnnotations,
+        {
+            "title": "Get Latest Cloudflare Invoice",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": False,
+            "openWorldHint": True,
+        },
+    ),
+)
+async def cloudflare_get_latest_invoice(ctx=None) -> str:
+    """Get the most recent Cloudflare billing item.
+
+    Fetches the latest billing item with cost and date.
+    Requires CLOUDFLARE_API_TOKEN to be set.
+
+    Useful for automated monthly bookkeeping: fetch the latest Cloudflare bill
+    and then use oc_create_expense to submit it to OpenCollective.
+    """
+    try:
+        token = os.environ.get("CLOUDFLARE_API_TOKEN")
+        if not token:
+            return "Error: CLOUDFLARE_API_TOKEN environment variable must be set."
+        cl = _get_cloudflare_client(ctx)
+        data = await cl.get_latest_invoice()
         return json.dumps(data, indent=2)
     except Exception as e:
         return _handle_error(e)
