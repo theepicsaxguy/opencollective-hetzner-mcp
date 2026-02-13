@@ -4,3 +4,4 @@ opencode.json
 .env
 .ruff_cache
 *.egg-info
+.claude/settings.json

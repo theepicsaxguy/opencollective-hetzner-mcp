@@ -9,14 +9,12 @@ Requires HETZNER_ACCOUNT_EMAIL and HETZNER_ACCOUNT_PASSWORD environment variable
 from __future__ import annotations
 
 import io
-import json
 import re
-from pathlib import Path
 from typing import Any, Optional
 
 import PyPDF2
 
-from .hetzner_browser import HetznerBrowserClient, HetznerInvoice
+from .hetzner_browser import HetznerBrowserClient
 
 
 class HetznerClient:

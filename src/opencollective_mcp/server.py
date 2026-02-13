@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import os
 from contextlib import asynccontextmanager
-from enum import Enum
 from typing import Any, Optional
 
 import httpx
