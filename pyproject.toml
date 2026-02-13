@@ -1,0 +1,23 @@
+[project]
+name = "opencollective-mcp"
+version = "0.1.0"
+description = "MCP server for OpenCollective GraphQL API v2"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.24.0",
+    "pydantic>=2.0.0",
+    "playwright>=1.40.0",
+    "pyotp>=2.9.0",
+    "PyPDF2>=3.0.0",
+]
+
+[project.scripts]
+opencollective-mcp = "opencollective_mcp.server:mcp.run"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
