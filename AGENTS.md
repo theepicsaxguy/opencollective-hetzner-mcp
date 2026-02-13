@@ -284,13 +284,26 @@ Convenience tool: fetches the most recent invoice. Designed for the monthly book
 ### Cloudflare
 
 #### `cloudflare_list_invoices`
-List billing history with pagination. Uses the deprecated but functional `/user/billing/history` endpoint. Returns cost, date, and type for each billing item.
+List billing history with pagination. Uses the deprecated but functional `/user/billing/history` endpoint. Returns cost, date, and type for each billing item. By default, automatically converts USD amounts to EUR using historical exchange rates from the European Central Bank (via Frankfurter API).
+
+**Parameters:**
+- `page`: Page number (default: 1)
+- `per_page`: Items per page, max 50 (default: 25)
+- `convert_to_eur`: Whether to convert USD to EUR (default: true)
+
+**Returns:** Each invoice includes:
+- `amount`: Original amount (usually USD)
+- `currency`: Original currency code
+- `amount_eur`: Converted EUR amount (when conversion enabled)
+- `amount_cents_eur`: EUR amount in cents (for OpenCollective)
+- `exchange_rate`: Rate used for conversion
+- `rate_date`: Date the exchange rate was fetched
 
 #### `cloudflare_get_invoice`
-Get a specific billing item by ID.
+Get a specific billing item by ID. Supports automatic EUR conversion via `convert_to_eur` parameter (default: true).
 
 #### `cloudflare_get_latest_invoice`
-Convenience tool: fetches the most recent billing item. Designed for the monthly bookkeeping workflow.
+Convenience tool: fetches the most recent billing item. Designed for the monthly bookkeeping workflow. Automatically converts USD to EUR by default. Returns `amount_cents_eur` ready for direct use with OpenCollective.
 
 ---
 
@@ -312,16 +325,22 @@ This works even with a negative collective balance -- the expense is recorded fo
 
 ### Monthly Cloudflare expense submission
 
-Same workflow as Hetzner, but for Cloudflare CDN/hosting costs:
+Cloudflare bills in USD, but the tools automatically convert to EUR using historical exchange rates from the European Central Bank (via Frankfurter API):
 
 1. **Fetch** the latest Cloudflare billing item: `cloudflare_get_latest_invoice`
-2. **Extract** the total amount (in USD) and date from the response
+2. **Extract** the data from the response:
+   - `amount_eur`: Converted EUR amount (e.g., "2.92")
+   - `amount_cents_eur`: EUR amount in cents for OpenCollective (e.g., 292)
+   - `exchange_rate`: Rate used for conversion
+   - `date`: Invoice date
 3. **Submit** it to OpenCollective: `oc_create_expense` with:
    - `account_slug: "goingdark"`
    - `expense_type: "INVOICE"`
    - `tags: ["cloudflare", "hosting", "cdn"]`
-   - Amount (convert USD to cents, e.g., $3.45 -> 345 cents)
+   - `amount_cents`: Use `amount_cents_eur` from step 2
    - Date from step 2
+
+**Note:** EUR conversion is enabled by default. Set `convert_to_eur: false` to get original USD amounts only.
 
 ### Check collective health
 

@@ -65,9 +65,9 @@ Repeat every month. Forever.
 
 | Tool | What it does |
 |------|--------------|
-| `cloudflare_list_invoices` | List billing history (paginated) |
-| `cloudflare_get_invoice` | Get a specific billing item by ID |
-| `cloudflare_get_latest_invoice` | Fetch the most recent billing item |
+| `cloudflare_list_invoices` | List billing history (paginated). Auto-converts USD to EUR using historical ECB rates |
+| `cloudflare_get_invoice` | Get a specific billing item by ID. Includes EUR conversion |
+| `cloudflare_get_latest_invoice` | Fetch the most recent billing item. Returns `amount_cents_eur` ready for OpenCollective |
 
 ## The Monthly Bookkeeping Workflow
 
@@ -87,6 +87,24 @@ oc_create_expense(
         "currency": "EUR"
     }],
     tags=["hetzner", "hosting"]
+)
+```
+
+```python
+# For Cloudflare (automatically converts USD to EUR)
+invoice = cloudflare_get_latest_invoice()
+
+oc_create_expense(
+    account_slug="my-collective",
+    description=f"Cloudflare - {invoice['date']}",
+    expense_type="INVOICE",
+    payee_slug="my-org",
+    items=[{
+        "description": f"Cloudflare services - {invoice['date']}",
+        "amount_cents": invoice['amount_cents_eur'],  # Already converted!
+        "currency": "EUR"
+    }],
+    tags=["cloudflare", "hosting", "cdn"]
 )
 ```
 

@@ -1415,20 +1415,44 @@ async def hetzner_get_invoice_details(
 # ---------------------------------------------------------------------------
 
 
-def _get_cloudflare_client(ctx) -> cloudflare_client.CloudflareClient:
+def _get_cloudflare_client(
+    ctx, convert_to_eur: bool = True
+) -> cloudflare_client.CloudflareClient:
+    """Get or create a Cloudflare client with specified conversion settings.
+
+    Args:
+        ctx: MCP context
+        convert_to_eur: Whether to enable EUR conversion
+
+    Returns:
+        CloudflareClient instance
+    """
     global _cloudflare_client
+
+    # If we have a cached client with matching settings, use it
     if _cloudflare_client is not None:
-        return _cloudflare_client
+        if _cloudflare_client._convert_to_eur == convert_to_eur:
+            return _cloudflare_client
+        # Settings don't match, close and recreate
+        import asyncio
+
+        asyncio.create_task(_cloudflare_client.close())
+        _cloudflare_client = None
+
+    # Check context for existing client
     if (
         ctx
         and hasattr(ctx, "request_context")
         and hasattr(ctx.request_context, "lifespan_state")
     ):
         client = ctx.request_context.lifespan_state.get("cloudflare_client")
-        if client is not None:
+        if client is not None and client._convert_to_eur == convert_to_eur:
             return client
-    # Fallback: create a new client
-    _cloudflare_client = cloudflare_client.CloudflareClient()
+
+    # Create new client with specified settings
+    _cloudflare_client = cloudflare_client.CloudflareClient(
+        convert_to_eur=convert_to_eur
+    )
     return _cloudflare_client
 
 
@@ -1438,11 +1462,27 @@ class CloudflareListInvoicesInput(BaseModel):
     per_page: int = Field(
         default=25, ge=1, le=50, description="Items per page (max 50)"
     )
+    convert_to_eur: bool = Field(
+        default=True,
+        description="Convert USD amounts to EUR using historical exchange rates",
+    )
 
 
 class CloudflareGetInvoiceInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     invoice_id: str = Field(..., description="Invoice ID", min_length=1)
+    convert_to_eur: bool = Field(
+        default=True,
+        description="Convert USD amounts to EUR using historical exchange rates",
+    )
+
+
+class CloudflareGetLatestInvoiceInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    convert_to_eur: bool = Field(
+        default=True,
+        description="Convert USD amounts to EUR using historical exchange rates",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1468,14 +1508,26 @@ async def cloudflare_list_invoices(
 ) -> str:
     """List billing history from Cloudflare.
 
-    Returns billing items with cost and date. Requires CLOUDFLARE_API_TOKEN to be set.
+    Returns billing items with cost and date. When convert_to_eur is True (default),
+    automatically converts USD amounts to EUR using historical exchange rates from
+    the European Central Bank (via Frankfurter API).
+
+    Each invoice includes:
+    - amount: Original amount (usually USD)
+    - currency: Original currency code
+    - amount_eur: Converted EUR amount (when conversion enabled)
+    - amount_cents_eur: EUR amount in cents (for OpenCollective)
+    - exchange_rate: Rate used for conversion
+    - rate_date: Date the exchange rate was fetched
+
+    Requires CLOUDFLARE_API_TOKEN to be set.
     Uses the Cloudflare API (deprecated but functional /user/billing/history endpoint).
     """
     try:
         token = os.environ.get("CLOUDFLARE_API_TOKEN")
         if not token:
             return "Error: CLOUDFLARE_API_TOKEN environment variable must be set."
-        cl = _get_cloudflare_client(ctx)
+        cl = _get_cloudflare_client(ctx, convert_to_eur=params.convert_to_eur)
         data = await cl.list_invoices(page=params.page, per_page=params.per_page)
         return json.dumps(data, indent=2)
     except Exception as e:
@@ -1498,13 +1550,24 @@ async def cloudflare_list_invoices(
 async def cloudflare_get_invoice(params: CloudflareGetInvoiceInput, ctx=None) -> str:
     """Get details of a specific Cloudflare billing item by ID.
 
+    When convert_to_eur is True (default), automatically converts USD amounts to EUR
+    using historical exchange rates from the European Central Bank.
+
+    Returns invoice with:
+    - amount: Original amount (usually USD)
+    - currency: Original currency code
+    - amount_eur: Converted EUR amount (when conversion enabled)
+    - amount_cents_eur: EUR amount in cents (for OpenCollective)
+    - exchange_rate: Rate used for conversion
+    - rate_date: Date the exchange rate was fetched
+
     Requires CLOUDFLARE_API_TOKEN to be set.
     """
     try:
         token = os.environ.get("CLOUDFLARE_API_TOKEN")
         if not token:
             return "Error: CLOUDFLARE_API_TOKEN environment variable must be set."
-        cl = _get_cloudflare_client(ctx)
+        cl = _get_cloudflare_client(ctx, convert_to_eur=params.convert_to_eur)
         data = await cl.get_invoice(params.invoice_id)
         return json.dumps(data, indent=2)
     except Exception as e:
@@ -1524,10 +1587,23 @@ async def cloudflare_get_invoice(params: CloudflareGetInvoiceInput, ctx=None) ->
         },
     ),
 )
-async def cloudflare_get_latest_invoice(ctx=None) -> str:
+async def cloudflare_get_latest_invoice(
+    params: CloudflareGetLatestInvoiceInput, ctx=None
+) -> str:
     """Get the most recent Cloudflare billing item.
 
-    Fetches the latest billing item with cost and date.
+    Fetches the latest billing item with cost and date. When convert_to_eur is True
+    (default), automatically converts USD amounts to EUR using historical exchange
+    rates from the European Central Bank.
+
+    Returns invoice with:
+    - amount: Original amount (usually USD)
+    - currency: Original currency code
+    - amount_eur: Converted EUR amount (when conversion enabled)
+    - amount_cents_eur: EUR amount in cents (ready for OpenCollective)
+    - exchange_rate: Rate used for conversion
+    - rate_date: Date the exchange rate was fetched
+
     Requires CLOUDFLARE_API_TOKEN to be set.
 
     Useful for automated monthly bookkeeping: fetch the latest Cloudflare bill
@@ -1537,7 +1613,7 @@ async def cloudflare_get_latest_invoice(ctx=None) -> str:
         token = os.environ.get("CLOUDFLARE_API_TOKEN")
         if not token:
             return "Error: CLOUDFLARE_API_TOKEN environment variable must be set."
-        cl = _get_cloudflare_client(ctx)
+        cl = _get_cloudflare_client(ctx, convert_to_eur=params.convert_to_eur)
         data = await cl.get_latest_invoice()
         return json.dumps(data, indent=2)
     except Exception as e:
