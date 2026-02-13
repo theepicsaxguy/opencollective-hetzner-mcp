@@ -156,7 +156,7 @@ If you run a collective with cloud infrastructure, this saves you 15–30 minute
 
 ## License
 
-MIT
+Apache License 2.0
 
 ---
 
